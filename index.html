@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>マインスイーパー（超上級対応）</title>
+    <title>スーパーマインスイーパー</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -25,7 +25,7 @@
             font-size: 28px;
         }
 
-        /* 難易度ボタンエリア（折り返し対応） */
+        /* 難易度ボタンエリア */
         .controls {
             margin-bottom: 20px;
             display: flex;
@@ -48,10 +48,7 @@
             border: 2px inset #fff;
         }
 
-        /* 超上級ボタンを目立たせる */
-        .btn-super {
-            color: purple;
-        }
+        .btn-super { color: purple; }
 
         #game-info {
             margin-bottom: 15px;
@@ -68,11 +65,11 @@
             border-bottom-color: #fff;
         }
 
-        /* 横スクロール対応のラッパー */
+        /* スクロール用コンテナ */
         #grid-container {
-            max-width: 100%;
-            overflow: auto; /* 画面からはみ出たらスクロール */
-            border: 2px solid #808080; /* 外枠 */
+            max-width: 95vw; /* 画面幅いっぱいまで使う */
+            overflow: auto;
+            border: 2px solid #808080;
             padding: 2px;
             background: #bdbdbd;
         }
@@ -85,7 +82,8 @@
             border: 4px solid #fff;
             border-right-color: #808080;
             border-bottom-color: #808080;
-            margin: 0 auto; /* コンテナ内で中央寄せ */
+            margin: 0 auto;
+            /* 幅はJSで制御 */
         }
 
         .cell {
@@ -115,7 +113,6 @@
         .cell.mine { background-color: red; }
         .cell.flagged { color: red; }
 
-        /* 数字の色 */
         .c1 { color: blue; }
         .c2 { color: green; }
         .c3 { color: red; }
@@ -146,7 +143,7 @@
     <div class="controls">
         <button class="btn-diff" onclick="setDifficulty(9, 9, 10)">初級 (9×9)</button>
         <button class="btn-diff" onclick="setDifficulty(16, 16, 40)">中級 (16×16)</button>
-        <button class="btn-diff" onclick="setDifficulty(30, 16, 99)">上級 (30×16)</button>
+        <button class="btn-diff" onclick="setDifficulty(16, 30, 99)">上級 (横30×縦16)</button>
         <button class="btn-diff btn-super" onclick="setDifficulty(30, 30, 200)">超上級 (30×30)</button>
     </div>
     
@@ -191,7 +188,7 @@
             statusElement.style.color = "black";
             minesCountElement.innerText = totalMines;
 
-            // マスの幅(30px) + gap(1px) に基づいて横幅を設定
+            // 列数（横の数）に合わせてCSS Gridを設定
             gridElement.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
 
             for (let r = 0; r < rows; r++) {
