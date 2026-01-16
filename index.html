@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シンプル・マインスイーパー</title>
+    <title>マインスイーパー（超上級対応）</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,39 +11,83 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
+            /* 画面より盤面が大きくなってもいいように修正 */
+            min-height: 100vh;
             margin: 0;
-            user-select: none; /* テキスト選択を無効化 */
+            user-select: none;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         h1 {
             color: #333;
-            margin-bottom: 10px;
+            margin: 0 0 15px 0;
+            font-size: 28px;
+        }
+
+        /* 難易度ボタンエリア（折り返し対応） */
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            max-width: 100%;
+        }
+
+        .btn-diff {
+            padding: 8px 12px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #e0e0e0;
+            border: 2px outset #fff;
+            font-weight: bold;
+        }
+        
+        .btn-diff:active {
+            border: 2px inset #fff;
+        }
+
+        /* 超上級ボタンを目立たせる */
+        .btn-super {
+            color: purple;
         }
 
         #game-info {
             margin-bottom: 15px;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             display: flex;
-            gap: 20px;
+            gap: 30px;
+            background: #c0c0c0;
+            padding: 8px 20px;
+            border: 2px solid #808080;
+            border-top-color: #808080;
+            border-left-color: #808080;
+            border-right-color: #fff;
+            border-bottom-color: #fff;
         }
 
-        /* グリッドコンテナ */
+        /* 横スクロール対応のラッパー */
+        #grid-container {
+            max-width: 100%;
+            overflow: auto; /* 画面からはみ出たらスクロール */
+            border: 2px solid #808080; /* 外枠 */
+            padding: 2px;
+            background: #bdbdbd;
+        }
+
+        /* グリッド */
         #grid {
             display: grid;
-            grid-template-columns: repeat(9, 30px);
-            grid-template-rows: repeat(9, 30px);
             gap: 1px;
             background-color: #808080;
             border: 4px solid #fff;
             border-right-color: #808080;
             border-bottom-color: #808080;
-            padding: 4px;
+            margin: 0 auto; /* コンテナ内で中央寄せ */
         }
 
-        /* マスのスタイル */
         .cell {
             width: 30px;
             height: 30px;
@@ -62,24 +106,16 @@
             font-size: 16px;
         }
 
-        /* 開かれたマスのスタイル */
         .cell.revealed {
             background-color: #dcdcdc;
             border: 1px solid #999;
             cursor: default;
         }
 
-        /* 地雷踏んだ時 */
-        .cell.mine {
-            background-color: red;
-        }
+        .cell.mine { background-color: red; }
+        .cell.flagged { color: red; }
 
-        /* 旗が立っている時 */
-        .cell.flagged {
-            color: red;
-        }
-
-        /* 数字ごとの色 */
+        /* 数字の色 */
         .c1 { color: blue; }
         .c2 { color: green; }
         .c3 { color: red; }
@@ -89,41 +125,63 @@
         .c7 { color: black; }
         .c8 { color: gray; }
 
-        button {
+        .reset-btn {
             margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 10px 40px;
+            font-size: 18px;
+            font-weight: bold;
             cursor: pointer;
+            border: 2px outset #fff;
+            background: #e0e0e0;
+        }
+        .reset-btn:active {
+            border: 2px inset #fff;
         }
     </style>
 </head>
 <body>
 
     <h1>Minesweeper</h1>
+
+    <div class="controls">
+        <button class="btn-diff" onclick="setDifficulty(9, 9, 10)">初級 (9×9)</button>
+        <button class="btn-diff" onclick="setDifficulty(16, 16, 40)">中級 (16×16)</button>
+        <button class="btn-diff" onclick="setDifficulty(30, 16, 99)">上級 (30×16)</button>
+        <button class="btn-diff btn-super" onclick="setDifficulty(30, 30, 200)">超上級 (30×30)</button>
+    </div>
     
     <div id="game-info">
         <span id="status">ゲーム中</span>
-        <span>残り地雷: <span id="mines-count">10</span></span>
+        <span>💣: <span id="mines-count">10</span></span>
     </div>
 
-    <div id="grid"></div>
+    <div id="grid-container">
+        <div id="grid"></div>
+    </div>
 
-    <button onclick="initGame()">リセット</button>
+    <button class="reset-btn" onclick="initGame()">リセット</button>
 
     <script>
         const gridElement = document.getElementById('grid');
         const statusElement = document.getElementById('status');
         const minesCountElement = document.getElementById('mines-count');
         
-        const rows = 9;
-        const cols = 9;
-        const totalMines = 10;
+        // デフォルト設定
+        let rows = 9;
+        let cols = 9;
+        let totalMines = 10;
         
         let grid = [];
         let isGameOver = false;
         let flags = 0;
 
-        // 初期化
+        function setDifficulty(r, c, m) {
+            rows = r;
+            cols = c;
+            totalMines = m;
+            initGame();
+        }
+
         function initGame() {
             gridElement.innerHTML = '';
             grid = [];
@@ -133,7 +191,9 @@
             statusElement.style.color = "black";
             minesCountElement.innerText = totalMines;
 
-            // グリッド作成
+            // マスの幅(30px) + gap(1px) に基づいて横幅を設定
+            gridElement.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+
             for (let r = 0; r < rows; r++) {
                 const row = [];
                 for (let c = 0; c < cols; c++) {
@@ -142,7 +202,6 @@
                     cell.dataset.row = r;
                     cell.dataset.col = c;
                     
-                    // クリックイベント
                     cell.addEventListener('click', () => handleClick(r, c));
                     cell.addEventListener('contextmenu', (e) => handleRightClick(e, r, c));
                     
@@ -162,7 +221,6 @@
             calculateNumbers();
         }
 
-        // 地雷の配置
         function placeMines() {
             let minesPlaced = 0;
             while (minesPlaced < totalMines) {
@@ -175,14 +233,11 @@
             }
         }
 
-        // 周囲の地雷数を計算
         function calculateNumbers() {
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     if (grid[r][c].isMine) continue;
-                    
                     let count = 0;
-                    // 周囲8マスをチェック
                     for (let i = -1; i <= 1; i++) {
                         for (let j = -1; j <= 1; j++) {
                             const nr = r + i;
@@ -197,12 +252,9 @@
             }
         }
 
-        // 左クリック処理
         function handleClick(r, c) {
             if (isGameOver || grid[r][c].isFlagged || grid[r][c].isRevealed) return;
-
             const cell = grid[r][c];
-            
             if (cell.isMine) {
                 gameOver(false);
             } else {
@@ -211,21 +263,17 @@
             }
         }
 
-        // 右クリック処理（旗）
         function handleRightClick(e, r, c) {
-            e.preventDefault(); // メニューを出さない
+            e.preventDefault();
             if (isGameOver || grid[r][c].isRevealed) return;
-
             const cell = grid[r][c];
             cell.isFlagged = !cell.isFlagged;
             cell.element.classList.toggle('flagged');
             cell.element.innerText = cell.isFlagged ? '🚩' : '';
-            
             flags += cell.isFlagged ? 1 : -1;
             minesCountElement.innerText = totalMines - flags;
         }
 
-        // マスを開く（再帰処理）
         function revealCell(r, c) {
             if (r < 0 || r >= rows || c < 0 || c >= cols) return;
             const cell = grid[r][c];
@@ -238,7 +286,6 @@
                 cell.element.innerText = cell.neighborMines;
                 cell.element.classList.add(`c${cell.neighborMines}`);
             } else {
-                // 0の場合は周囲も自動で開く
                 for (let i = -1; i <= 1; i++) {
                     for (let j = -1; j <= 1; j++) {
                         revealCell(r + i, c + j);
@@ -247,13 +294,10 @@
             }
         }
 
-        // ゲーム終了処理
         function gameOver(isWin) {
             isGameOver = true;
             statusElement.innerText = isWin ? "クリア！" : "ゲームオーバー";
             statusElement.style.color = isWin ? "green" : "red";
-
-            // 全ての地雷を表示
             if (!isWin) {
                 grid.forEach(row => {
                     row.forEach(cell => {
@@ -266,7 +310,6 @@
             }
         }
 
-        // 勝利判定
         function checkWin() {
             let revealedCount = 0;
             grid.forEach(row => {
@@ -274,15 +317,12 @@
                     if (cell.isRevealed) revealedCount++;
                 });
             });
-
             if (revealedCount === (rows * cols - totalMines)) {
                 gameOver(true);
             }
         }
 
-        // ゲーム開始
         initGame();
-
     </script>
 </body>
 </html>
