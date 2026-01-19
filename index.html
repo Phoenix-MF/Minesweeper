@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>スーパーマインスイーパー</title>
+    <title>マインスイーパー</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,7 +11,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* 画面より盤面が大きくなってもいいように修正 */
             min-height: 100vh;
             margin: 0;
             user-select: none;
@@ -21,13 +20,19 @@
 
         h1 {
             color: #333;
-            margin: 0 0 15px 0;
+            margin: 0 0 10px 0;
             font-size: 28px;
+        }
+
+        .hint {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 15px;
         }
 
         /* 難易度ボタンエリア */
         .controls {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
@@ -48,7 +53,10 @@
             border: 2px inset #fff;
         }
 
-        .btn-super { color: purple; }
+        .btn-super {
+            color: purple;
+            border: 2px outset #e0a0e0;
+        }
 
         #game-info {
             margin-bottom: 15px;
@@ -67,11 +75,12 @@
 
         /* スクロール用コンテナ */
         #grid-container {
-            max-width: 95vw; /* 画面幅いっぱいまで使う */
+            max-width: 95vw;
             overflow: auto;
             border: 2px solid #808080;
             padding: 2px;
             background: #bdbdbd;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
         }
 
         /* グリッド */
@@ -83,7 +92,6 @@
             border-right-color: #808080;
             border-bottom-color: #808080;
             margin: 0 auto;
-            /* 幅はJSで制御 */
         }
 
         .cell {
@@ -139,6 +147,7 @@
 <body>
 
     <h1>Minesweeper</h1>
+    <div class="hint">※最初のクリックは安全で、大きく開きます</div>
 
     <div class="controls">
         <button class="btn-diff" onclick="setDifficulty(9, 9, 10)">初級 (9×9)</button>
@@ -171,6 +180,7 @@
         let grid = [];
         let isGameOver = false;
         let flags = 0;
+        let isFirstClick = true; // 初回クリック判定用
 
         function setDifficulty(r, c, m) {
             rows = r;
@@ -184,13 +194,15 @@
             grid = [];
             isGameOver = false;
             flags = 0;
+            isFirstClick = true; // 初回フラグをリセット
             statusElement.innerText = "ゲーム中";
             statusElement.style.color = "black";
             minesCountElement.innerText = totalMines;
 
-            // 列数（横の数）に合わせてCSS Gridを設定
+            // CSS Gridの列数を設定
             gridElement.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
 
+            // グリッド生成（この時点では地雷は置かない）
             for (let r = 0; r < rows; r++) {
                 const row = [];
                 for (let c = 0; c < cols; c++) {
@@ -213,17 +225,25 @@
                 }
                 grid.push(row);
             }
-
-            placeMines();
-            calculateNumbers();
         }
 
-        function placeMines() {
+        // 地雷配置（初手が安全になるように調整）
+        function placeMines(safeR, safeC) {
             let minesPlaced = 0;
-            while (minesPlaced < totalMines) {
+            let attempts = 0;
+            const maxAttempts = 500000; // 無限ループ防止
+
+            while (minesPlaced < totalMines && attempts < maxAttempts) {
+                attempts++;
                 const r = Math.floor(Math.random() * rows);
                 const c = Math.floor(Math.random() * cols);
-                if (!grid[r][c].isMine) {
+
+                // 安全地帯チェック
+                // クリックした場所(safeR, safeC)の周囲1マス（計9マス）には地雷を置かない
+                // これにより、クリック地点は必ず「0」になり、大きく開く
+                const isSafeZone = (Math.abs(r - safeR) <= 1 && Math.abs(c - safeC) <= 1);
+
+                if (!grid[r][c].isMine && !isSafeZone) {
                     grid[r][c].isMine = true;
                     minesPlaced++;
                 }
@@ -251,6 +271,14 @@
 
         function handleClick(r, c) {
             if (isGameOver || grid[r][c].isFlagged || grid[r][c].isRevealed) return;
+
+            // ★初回クリック時の処理
+            if (isFirstClick) {
+                placeMines(r, c);       // クリック位置とその周囲を避けて地雷配置
+                calculateNumbers();     // 数字計算
+                isFirstClick = false;   // フラグ解除
+            }
+
             const cell = grid[r][c];
             if (cell.isMine) {
                 gameOver(false);
@@ -263,10 +291,12 @@
         function handleRightClick(e, r, c) {
             e.preventDefault();
             if (isGameOver || grid[r][c].isRevealed) return;
+
             const cell = grid[r][c];
             cell.isFlagged = !cell.isFlagged;
             cell.element.classList.toggle('flagged');
             cell.element.innerText = cell.isFlagged ? '🚩' : '';
+            
             flags += cell.isFlagged ? 1 : -1;
             minesCountElement.innerText = totalMines - flags;
         }
@@ -283,6 +313,7 @@
                 cell.element.innerText = cell.neighborMines;
                 cell.element.classList.add(`c${cell.neighborMines}`);
             } else {
+                // 数字が0（周囲に地雷なし）なら、周囲も自動で開く
                 for (let i = -1; i <= 1; i++) {
                     for (let j = -1; j <= 1; j++) {
                         revealCell(r + i, c + j);
@@ -295,6 +326,7 @@
             isGameOver = true;
             statusElement.innerText = isWin ? "クリア！" : "ゲームオーバー";
             statusElement.style.color = isWin ? "green" : "red";
+
             if (!isWin) {
                 grid.forEach(row => {
                     row.forEach(cell => {
@@ -319,6 +351,7 @@
             }
         }
 
+        // 初期化
         initGame();
     </script>
 </body>
